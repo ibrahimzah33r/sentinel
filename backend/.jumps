@@ -1,0 +1,5 @@
+root=.
+src=src/main/java/sentinel_backend
+event=src/main/java/sentinel_backend/event
+test=src/test/java/sentinel_backend
+res=src/main/resources
