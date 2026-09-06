@@ -1,12 +1,19 @@
-name: CI/CD
+name: Backend CI/CD
 
 on:
   push:
     branches:
       - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
   pull_request:
     branches:
       - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
 
 permissions:
   contents: read
@@ -15,24 +22,27 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: backend
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
-          node-version: "22"
-          cache: npm
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: backend/pom.xml
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build frontend
-        run: npm run build
+      - name: Run tests
+        run: mvn test
 
       - name: Build Docker image
-        run: docker build --build-arg VITE_API_BASE_URL= -t sentinel-web .
+        run: docker build -t sentinel-backend .
 
   publish:
     needs: test
@@ -58,10 +68,8 @@ jobs:
       - name: Build and publish Docker image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./backend
           push: true
-          build-args: |
-            VITE_API_BASE_URL=
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/ibrahimzah33r/sentinel-backend:latest
+            ghcr.io/ibrahimzah33r/sentinel-backend:${{ github.sha }}

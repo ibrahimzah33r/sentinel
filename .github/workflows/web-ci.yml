@@ -1,12 +1,19 @@
-name: CI/CD
+name: Web CI/CD
 
 on:
   push:
     branches:
       - main
+    paths:
+      - "web/**"
+      - ".github/workflows/web-ci.yml"
+
   pull_request:
     branches:
       - main
+    paths:
+      - "web/**"
+      - ".github/workflows/web-ci.yml"
 
 permissions:
   contents: read
@@ -15,22 +22,29 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: web
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
-          distribution: temurin
-          java-version: "21"
-          cache: maven
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
 
-      - name: Run tests
-        run: mvn test
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
 
       - name: Build Docker image
-        run: docker build -t sentinel-backend .
+        run: docker build --build-arg VITE_API_BASE_URL= -t sentinel-web .
 
   publish:
     needs: test
@@ -56,8 +70,10 @@ jobs:
       - name: Build and publish Docker image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./web
           push: true
+          build-args: |
+            VITE_API_BASE_URL=
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/ibrahimzah33r/sentinel-web:latest
+            ghcr.io/ibrahimzah33r/sentinel-web:${{ github.sha }}

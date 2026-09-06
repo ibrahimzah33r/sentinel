@@ -1,0 +1,10 @@
+# Local deployment secrets
+deployment/.env
+deployment/.env.*
+!deployment/.env.example
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
