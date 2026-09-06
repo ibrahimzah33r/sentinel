@@ -1,12 +1,12 @@
 package sentinel_backend.casework;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static sentinel_backend.TestUserFactory.testUser;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,9 +14,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import sentinel_backend.TestContainersConfig;
+import sentinel_backend.auth.AnalystRepository;
+import sentinel_backend.auth.AnalystRole;
 import sentinel_backend.event.EventType;
 import sentinel_backend.event.SecurityEventRequest;
 import sentinel_backend.event.SecurityEventResponse;
@@ -28,283 +31,299 @@ import tools.jackson.databind.json.JsonMapper;
 @Import(TestContainersConfig.class)
 class InvestigationCaseControllerTests {
 
-    @Autowired
-    private MockMvc mockMvc;
+        @Autowired
+        private MockMvc mockMvc;
 
-    @Autowired
-    private JsonMapper jsonMapper;
+        @Autowired
+        private JsonMapper jsonMapper;
 
-    private SecurityEventResponse createEvent(
-            String source,
-            EventType eventType,
-            Severity severity,
-            String message
-    ) throws Exception {
+        @Autowired
+        private AnalystRepository analystRepository;
 
-        SecurityEventRequest request =
-                new SecurityEventRequest(
-                        source,
-                        eventType,
-                        severity,
-                        message,
-                        null
-                );
+        @Autowired
+        private PasswordEncoder passwordEncoder;
 
-        String response = mockMvc.perform(
-                post("/api/events")
-                        .with(user("analyst"))
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(
-                                jsonMapper.writeValueAsString(request)
-                        )
-        )
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+        private SecurityEventResponse createEvent(
+                        String source,
+                        EventType eventType,
+                        Severity severity,
+                        String message) throws Exception {
 
-        return jsonMapper.readValue(
-                response,
-                SecurityEventResponse.class
-        );
-    }
+                SecurityEventRequest request = new SecurityEventRequest(
+                                source,
+                                eventType,
+                                severity,
+                                message,
+                                null);
 
-    private SecurityEventResponse escalateEvent(
-            long eventId
-    ) throws Exception {
+                String response = mockMvc.perform(
+                                post("/api/events")
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
+                                                .with(csrf())
+                                                .contentType(MediaType.APPLICATION_JSON)
+                                                .content(
+                                                                jsonMapper.writeValueAsString(request)))
+                                .andExpect(status().isOk())
+                                .andReturn()
+                                .getResponse()
+                                .getContentAsString();
 
-        String response = mockMvc.perform(
-                patch(
-                        "/api/events/"
-                                + eventId
-                                + "/status"
-                )
-                        .with(user("analyst"))
-                        .with(csrf())
-                        .param("status", "ESCALATED")
-        )
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+                return jsonMapper.readValue(
+                                response,
+                                SecurityEventResponse.class);
+        }
 
-        return jsonMapper.readValue(
-                response,
-                SecurityEventResponse.class
-        );
-    }
+        private SecurityEventResponse escalateEvent(
+                        long eventId) throws Exception {
 
-    private InvestigationCaseResponse createCase(
-            long eventId
-    ) throws Exception {
+                String response = mockMvc.perform(
+                                patch(
+                                                "/api/events/"
+                                                                + eventId
+                                                                + "/status")
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
+                                                .with(csrf())
+                                                .param("status", "ESCALATED"))
+                                .andExpect(status().isOk())
+                                .andReturn()
+                                .getResponse()
+                                .getContentAsString();
 
-        String response = mockMvc.perform(
-                post(
-                        "/api/cases/from-event/"
-                                + eventId
-                )
-                        .with(user("analyst"))
-                        .with(csrf())
-        )
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+                return jsonMapper.readValue(
+                                response,
+                                SecurityEventResponse.class);
+        }
 
-        return jsonMapper.readValue(
-                response,
-                InvestigationCaseResponse.class
-        );
-    }
+        private InvestigationCaseResponse createCase(
+                        long eventId) throws Exception {
 
-    @Test
-    void shouldCreateCaseFromEscalatedEvent()
-            throws Exception {
+                String response = mockMvc.perform(
+                                post(
+                                                "/api/cases/from-event/"
+                                                                + eventId)
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
+                                                .with(csrf()))
+                                .andExpect(status().isOk())
+                                .andReturn()
+                                .getResponse()
+                                .getContentAsString();
 
-        SecurityEventResponse event =
-                createEvent(
-                        "case-test",
-                        EventType.FAILED_LOGIN,
-                        Severity.HIGH,
-                        "Repeated failed login attempts"
-                );
+                return jsonMapper.readValue(
+                                response,
+                                InvestigationCaseResponse.class);
+        }
 
-        escalateEvent(event.id());
+        @Test
+        void shouldCreateCaseFromEscalatedEvent()
+                        throws Exception {
 
-        mockMvc.perform(
-                post(
-                        "/api/cases/from-event/"
-                                + event.id()
-                )
-                        .with(user("analyst"))
-                        .with(csrf())
-        )
-                .andExpect(status().isOk())
-                .andExpect(
-                        jsonPath("$.status")
-                                .value("OPEN")
-                )
-                .andExpect(
-                        jsonPath("$.eventId")
-                                .value(event.id())
-                )
-                .andExpect(
-                        jsonPath("$.eventType")
-                                .value("FAILED_LOGIN")
-                );
-    }
+                SecurityEventResponse event = createEvent(
+                                "case-test",
+                                EventType.FAILED_LOGIN,
+                                Severity.HIGH,
+                                "Repeated failed login attempts");
 
-    @Test
-    void shouldRejectNonEscalatedEvent()
-            throws Exception {
+                escalateEvent(event.id());
 
-        SecurityEventResponse event =
-                createEvent(
-                        "non-escalated-case-test",
-                        EventType.PORT_SCAN,
-                        Severity.MEDIUM,
-                        "Port scan detected"
-                );
+                mockMvc.perform(
+                                post(
+                                                "/api/cases/from-event/"
+                                                                + event.id())
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
+                                                .with(csrf()))
+                                .andExpect(status().isOk())
+                                .andExpect(
+                                                jsonPath("$.status")
+                                                                .value("OPEN"))
+                                .andExpect(
+                                                jsonPath("$.eventId")
+                                                                .value(event.id()))
+                                .andExpect(
+                                                jsonPath("$.eventType")
+                                                                .value("FAILED_LOGIN"));
+        }
 
-        mockMvc.perform(
-                post(
-                        "/api/cases/from-event/"
-                                + event.id()
-                )
-                        .with(user("analyst"))
-                        .with(csrf())
-        )
-                .andExpect(status().isBadRequest());
-    }
+        @Test
+        void shouldRejectNonEscalatedEvent()
+                        throws Exception {
 
-    @Test
-    void shouldRejectDuplicateCase()
-            throws Exception {
+                SecurityEventResponse event = createEvent(
+                                "non-escalated-case-test",
+                                EventType.PORT_SCAN,
+                                Severity.MEDIUM,
+                                "Port scan detected");
 
-        SecurityEventResponse event =
-                createEvent(
-                        "duplicate-case-test",
-                        EventType.FAILED_LOGIN,
-                        Severity.HIGH,
-                        "Repeated failed login attempts"
-                );
+                mockMvc.perform(
+                                post(
+                                                "/api/cases/from-event/"
+                                                                + event.id())
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
+                                                .with(csrf()))
+                                .andExpect(status().isBadRequest());
+        }
 
-        escalateEvent(event.id());
-        createCase(event.id());
+        @Test
+        void shouldRejectDuplicateCase()
+                        throws Exception {
 
-        mockMvc.perform(
-                post(
-                        "/api/cases/from-event/"
-                                + event.id()
-                )
-                        .with(user("analyst"))
-                        .with(csrf())
-        )
-                .andExpect(status().isConflict());
-    }
+                SecurityEventResponse event = createEvent(
+                                "duplicate-case-test",
+                                EventType.FAILED_LOGIN,
+                                Severity.HIGH,
+                                "Repeated failed login attempts");
 
-    @Test
-    void shouldReturnNotFoundForMissingEvent()
-            throws Exception {
-
-        mockMvc.perform(
-                post("/api/cases/from-event/999999999")
-                        .with(user("analyst"))
-                        .with(csrf())
-        )
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void shouldReturnCases()
-            throws Exception {
-
-        mockMvc.perform(
-                get("/api/cases")
-                        .with(user("analyst"))
-        )
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
-    }
-
-    @Test
-    void shouldCloseCase()
-            throws Exception {
-
-        SecurityEventResponse event =
-                createEvent(
-                        "close-case-test",
-                        EventType.MALWARE_DETECTED,
-                        Severity.CRITICAL,
-                        "Malware detected"
-                );
-
-        escalateEvent(event.id());
-
-        InvestigationCaseResponse investigationCase =
+                escalateEvent(event.id());
                 createCase(event.id());
 
-        mockMvc.perform(
-                patch(
-                        "/api/cases/"
-                                + investigationCase.id()
-                                + "/status"
-                )
-                        .with(user("analyst"))
-                        .with(csrf())
-                        .param("status", "CLOSED")
-        )
-                .andExpect(status().isOk())
-                .andExpect(
-                        jsonPath("$.status")
-                                .value("CLOSED")
-                );
-    }
+                mockMvc.perform(
+                                post(
+                                                "/api/cases/from-event/"
+                                                                + event.id())
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
+                                                .with(csrf()))
+                                .andExpect(status().isConflict());
+        }
 
-    @Test
-    void shouldReopenCase()
-            throws Exception {
+        @Test
+        void shouldReturnNotFoundForMissingEvent()
+                        throws Exception {
 
-        SecurityEventResponse event =
-                createEvent(
-                        "reopen-case-test",
-                        EventType.MALWARE_DETECTED,
-                        Severity.CRITICAL,
-                        "Malware detected"
-                );
+                mockMvc.perform(
+                                post("/api/cases/from-event/999999999")
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
+                                                .with(csrf()))
+                                .andExpect(status().isNotFound());
+        }
 
-        escalateEvent(event.id());
+        @Test
+        void shouldReturnCases()
+                        throws Exception {
 
-        InvestigationCaseResponse investigationCase =
-                createCase(event.id());
+                mockMvc.perform(
+                                get("/api/cases")
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$").isArray());
+        }
 
-        mockMvc.perform(
-                patch(
-                        "/api/cases/"
-                                + investigationCase.id()
-                                + "/status"
-                )
-                        .with(user("analyst"))
-                        .with(csrf())
-                        .param("status", "CLOSED")
-        )
-                .andExpect(status().isOk());
+        @Test
+        void shouldCloseCase()
+                        throws Exception {
 
-        mockMvc.perform(
-                patch(
-                        "/api/cases/"
-                                + investigationCase.id()
-                                + "/status"
-                )
-                        .with(user("analyst"))
-                        .with(csrf())
-                        .param("status", "OPEN")
-        )
-                .andExpect(status().isOk())
-                .andExpect(
-                        jsonPath("$.status")
-                                .value("OPEN")
-                );
-    }
+                SecurityEventResponse event = createEvent(
+                                "close-case-test",
+                                EventType.MALWARE_DETECTED,
+                                Severity.CRITICAL,
+                                "Malware detected");
+
+                escalateEvent(event.id());
+
+                InvestigationCaseResponse investigationCase = createCase(event.id());
+
+                mockMvc.perform(
+                                patch(
+                                                "/api/cases/"
+                                                                + investigationCase.id()
+                                                                + "/status")
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
+                                                .with(csrf())
+                                                .param("status", "CLOSED"))
+                                .andExpect(status().isOk())
+                                .andExpect(
+                                                jsonPath("$.status")
+                                                                .value("CLOSED"));
+        }
+
+        @Test
+        void shouldReopenCase()
+                        throws Exception {
+
+                SecurityEventResponse event = createEvent(
+                                "reopen-case-test",
+                                EventType.MALWARE_DETECTED,
+                                Severity.CRITICAL,
+                                "Malware detected");
+
+                escalateEvent(event.id());
+
+                InvestigationCaseResponse investigationCase = createCase(event.id());
+
+                mockMvc.perform(
+                                patch(
+                                                "/api/cases/"
+                                                                + investigationCase.id()
+                                                                + "/status")
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
+                                                .with(csrf())
+                                                .param("status", "CLOSED"))
+                                .andExpect(status().isOk());
+
+                mockMvc.perform(
+                                patch(
+                                                "/api/cases/"
+                                                                + investigationCase.id()
+                                                                + "/status")
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
+                                                .with(csrf())
+                                                .param("status", "OPEN"))
+                                .andExpect(status().isOk())
+                                .andExpect(
+                                                jsonPath("$.status")
+                                                                .value("OPEN"));
+        }
 }

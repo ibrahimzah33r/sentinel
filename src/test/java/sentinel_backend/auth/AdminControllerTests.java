@@ -3,11 +3,13 @@ package sentinel_backend.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static sentinel_backend.TestUserFactory.testUser;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,7 +43,9 @@ class AdminControllerTests {
         }
 
         @Test
-        void anonymousUserCannotCreateAnalyst() throws Exception {
+        void anonymousUserCannotCreateAnalyst()
+                        throws Exception {
+
                 mockMvc.perform(
                                 post("/api/admin/analysts")
                                                 .with(csrf())
@@ -56,10 +60,17 @@ class AdminControllerTests {
         }
 
         @Test
-        void normalAnalystCannotCreateAnalyst() throws Exception {
+        void normalAnalystCannotCreateAnalyst()
+                        throws Exception {
+
                 mockMvc.perform(
                                 post("/api/admin/analysts")
-                                                .with(user("analyst").roles("ANALYST"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content("""
@@ -72,10 +83,17 @@ class AdminControllerTests {
         }
 
         @Test
-        void adminCanCreateAnalyst() throws Exception {
+        void adminCanCreateAnalyst()
+                        throws Exception {
+
                 mockMvc.perform(
                                 post("/api/admin/analysts")
-                                                .with(user("admin").roles("ADMIN"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "admin",
+                                                                                AnalystRole.ADMIN))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content("""
@@ -110,7 +128,9 @@ class AdminControllerTests {
         }
 
         @Test
-        void normalAnalystCannotResetPassword() throws Exception {
+        void normalAnalystCannotResetPassword()
+                        throws Exception {
+
                 Analyst analyst = new Analyst(
                                 "analyst2",
                                 passwordEncoder.encode("OldPassword123!"));
@@ -124,7 +144,12 @@ class AdminControllerTests {
                                                 "/api/admin/analysts/"
                                                                 + savedAnalyst.getId()
                                                                 + "/password")
-                                                .with(user("analyst").roles("ANALYST"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content("""
@@ -136,7 +161,9 @@ class AdminControllerTests {
         }
 
         @Test
-        void adminCanResetPassword() throws Exception {
+        void adminCanResetPassword()
+                        throws Exception {
+
                 Analyst analyst = new Analyst(
                                 "analyst2",
                                 passwordEncoder.encode("OldPassword123!"));
@@ -150,7 +177,12 @@ class AdminControllerTests {
                                                 "/api/admin/analysts/"
                                                                 + savedAnalyst.getId()
                                                                 + "/password")
-                                                .with(user("admin").roles("ADMIN"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "admin",
+                                                                                AnalystRole.ADMIN))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content("""
@@ -172,7 +204,9 @@ class AdminControllerTests {
         }
 
         @Test
-        void adminCanDisableAnalyst() throws Exception {
+        void adminCanDisableAnalyst()
+                        throws Exception {
+
                 Analyst analyst = new Analyst(
                                 "analyst2",
                                 passwordEncoder.encode("Password123!"));
@@ -187,7 +221,12 @@ class AdminControllerTests {
                                                                 + savedAnalyst.getId()
                                                                 + "/enabled")
                                                 .param("enabled", "false")
-                                                .with(user("admin").roles("ADMIN"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "admin",
+                                                                                AnalystRole.ADMIN))
                                                 .with(csrf()))
                                 .andExpect(status().isOk())
                                 .andExpect(
@@ -203,7 +242,9 @@ class AdminControllerTests {
         }
 
         @Test
-        void disabledAnalystCannotLogin() throws Exception {
+        void disabledAnalystCannotLogin()
+                        throws Exception {
+
                 Analyst analyst = new Analyst(
                                 "analyst2",
                                 passwordEncoder.encode("Password123!"));
@@ -231,7 +272,12 @@ class AdminControllerTests {
 
                 mockMvc.perform(
                                 patch("/api/admin/analysts/99999/password")
-                                                .with(user("admin").roles("ADMIN"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "admin",
+                                                                                AnalystRole.ADMIN))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content("""
@@ -243,14 +289,16 @@ class AdminControllerTests {
         }
 
         @Test
-        void adminCanDeleteAnalyst() throws Exception {
+        void adminCanDeleteAnalyst()
+                        throws Exception {
+
                 Analyst admin = new Analyst(
                                 "admin",
                                 passwordEncoder.encode("Password123!"));
                 admin.setRole(AnalystRole.ADMIN);
                 admin.setEnabled(true);
 
-                analystRepository.save(admin);
+                Analyst savedAdmin = analystRepository.save(admin);
 
                 Analyst analyst = new Analyst(
                                 "analyst2",
@@ -264,7 +312,10 @@ class AdminControllerTests {
                                 delete(
                                                 "/api/admin/analysts/"
                                                                 + savedAnalyst.getId())
-                                                .with(user("admin").roles("ADMIN"))
+                                                .with(
+                                                                user(
+                                                                                savedAdmin.getUsername())
+                                                                                .roles("ADMIN"))
                                                 .with(csrf()))
                                 .andExpect(status().isNoContent());
 
@@ -299,7 +350,8 @@ class AdminControllerTests {
                                                 "/api/admin/analysts/"
                                                                 + savedAdminTwo.getId())
                                                 .with(
-                                                                user(savedAdminOne.getUsername())
+                                                                user(
+                                                                                savedAdminOne.getUsername())
                                                                                 .roles("ADMIN"))
                                                 .with(csrf()))
                                 .andExpect(status().isNoContent());
@@ -332,7 +384,8 @@ class AdminControllerTests {
                                                 "/api/admin/analysts/"
                                                                 + savedAdmin.getId())
                                                 .with(
-                                                                user(savedAdmin.getUsername())
+                                                                user(
+                                                                                savedAdmin.getUsername())
                                                                                 .roles("ADMIN"))
                                                 .with(csrf()))
                                 .andExpect(status().isBadRequest());
@@ -361,7 +414,10 @@ class AdminControllerTests {
                                                                 + savedAdmin.getId()
                                                                 + "/enabled")
                                                 .param("enabled", "false")
-                                                .with(user("admin").roles("ADMIN"))
+                                                .with(
+                                                                user(
+                                                                                savedAdmin.getUsername())
+                                                                                .roles("ADMIN"))
                                                 .with(csrf()))
                                 .andExpect(status().isBadRequest());
 
@@ -391,7 +447,12 @@ class AdminControllerTests {
                                                                 + savedAnalyst.getId()
                                                                 + "/role")
                                                 .param("role", "ADMIN")
-                                                .with(user("admin").roles("ADMIN"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "admin",
+                                                                                AnalystRole.ADMIN))
                                                 .with(csrf()))
                                 .andExpect(status().isOk())
                                 .andExpect(
@@ -416,7 +477,7 @@ class AdminControllerTests {
                 adminOne.setRole(AnalystRole.ADMIN);
                 adminOne.setEnabled(true);
 
-                analystRepository.save(adminOne);
+                Analyst savedAdminOne = analystRepository.save(adminOne);
 
                 Analyst adminTwo = new Analyst(
                                 "admin2",
@@ -432,7 +493,10 @@ class AdminControllerTests {
                                                                 + savedAdminTwo.getId()
                                                                 + "/role")
                                                 .param("role", "ANALYST")
-                                                .with(user("admin").roles("ADMIN"))
+                                                .with(
+                                                                user(
+                                                                                savedAdminOne.getUsername())
+                                                                                .roles("ADMIN"))
                                                 .with(csrf()))
                                 .andExpect(status().isOk())
                                 .andExpect(
@@ -458,7 +522,10 @@ class AdminControllerTests {
                                                                 + savedAdmin.getId()
                                                                 + "/role")
                                                 .param("role", "ANALYST")
-                                                .with(user("admin").roles("ADMIN"))
+                                                .with(
+                                                                user(
+                                                                                savedAdmin.getUsername())
+                                                                                .roles("ADMIN"))
                                                 .with(csrf()))
                                 .andExpect(status().isBadRequest());
 
@@ -471,15 +538,16 @@ class AdminControllerTests {
         }
 
         @Test
-        void analystCannotChangeRole() throws Exception {
+        void analystCannotChangeRole()
+                        throws Exception {
 
-                Analyst analyst = new Analyst(
+                Analyst targetAnalyst = new Analyst(
                                 "analyst2",
                                 passwordEncoder.encode("Password123!"));
-                analyst.setRole(AnalystRole.ANALYST);
-                analyst.setEnabled(true);
+                targetAnalyst.setRole(AnalystRole.ANALYST);
+                targetAnalyst.setEnabled(true);
 
-                Analyst savedAnalyst = analystRepository.save(analyst);
+                Analyst savedAnalyst = analystRepository.save(targetAnalyst);
 
                 mockMvc.perform(
                                 patch(
@@ -487,7 +555,12 @@ class AdminControllerTests {
                                                                 + savedAnalyst.getId()
                                                                 + "/role")
                                                 .param("role", "ADMIN")
-                                                .with(user("analyst").roles("ANALYST"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .with(csrf()))
                                 .andExpect(status().isForbidden());
         }
@@ -519,7 +592,8 @@ class AdminControllerTests {
                                                 "/api/admin/analysts/"
                                                                 + savedAdminOne.getId())
                                                 .with(
-                                                                user(savedAdminOne.getUsername())
+                                                                user(
+                                                                                savedAdminOne.getUsername())
                                                                                 .roles("ADMIN"))
                                                 .with(csrf())
                                                 .session(session))

@@ -6,6 +6,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -13,6 +14,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 import sentinel_backend.TestContainersConfig;
 import sentinel_backend.alert.AlertWebhookClient;
+import sentinel_backend.auth.AnalystRepository;
+import sentinel_backend.auth.AnalystRole;
 
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.is;
@@ -21,13 +24,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static sentinel_backend.TestUserFactory.testUser;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -39,6 +42,12 @@ class SecurityEventControllerTests {
 
         @Autowired
         private JsonMapper jsonMapper;
+
+        @Autowired
+        private AnalystRepository analystRepository;
+
+        @Autowired
+        private PasswordEncoder passwordEncoder;
 
         @MockitoBean
         private AlertWebhookClient alertWebhookClient;
@@ -58,7 +67,12 @@ class SecurityEventControllerTests {
 
                 String response = mockMvc.perform(
                                 post("/api/events")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(jsonMapper.writeValueAsString(request)))
@@ -82,7 +96,12 @@ class SecurityEventControllerTests {
 
                 mockMvc.perform(
                                 post("/api/events")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(jsonMapper.writeValueAsString(request)))
@@ -103,7 +122,12 @@ class SecurityEventControllerTests {
 
                 mockMvc.perform(
                                 post("/api/events")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(jsonMapper.writeValueAsString(request)))
@@ -126,7 +150,12 @@ class SecurityEventControllerTests {
 
                 String response = mockMvc.perform(
                                 post("/api/events")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(jsonMapper.writeValueAsString(request)))
@@ -140,7 +169,12 @@ class SecurityEventControllerTests {
 
                 mockMvc.perform(
                                 get("/api/events/" + createdEvent.id())
-                                                .with(user("analyst")))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST)))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.id").value(createdEvent.id()))
                                 .andExpect(jsonPath("$.source").value("test-server"));
@@ -150,7 +184,12 @@ class SecurityEventControllerTests {
         void shouldReturnNotFoundForMissingEvent() throws Exception {
                 mockMvc.perform(
                                 get("/api/events/999999999")
-                                                .with(user("analyst")))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST)))
                                 .andExpect(status().isNotFound())
                                 .andExpect(jsonPath("$.message")
                                                 .value("Security event not found"));
@@ -167,7 +206,12 @@ class SecurityEventControllerTests {
 
                 String response = mockMvc.perform(
                                 post("/api/events")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(jsonMapper.writeValueAsString(createRequest)))
@@ -188,7 +232,12 @@ class SecurityEventControllerTests {
 
                 mockMvc.perform(
                                 put("/api/events/" + createdEvent.id())
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(jsonMapper.writeValueAsString(updateRequest)))
@@ -208,7 +257,12 @@ class SecurityEventControllerTests {
 
                 String response = mockMvc.perform(
                                 post("/api/events")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(jsonMapper.writeValueAsString(request)))
@@ -222,13 +276,23 @@ class SecurityEventControllerTests {
 
                 mockMvc.perform(
                                 delete("/api/events/" + createdEvent.id())
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .with(csrf()))
                                 .andExpect(status().isOk());
 
                 mockMvc.perform(
                                 get("/api/events/" + createdEvent.id())
-                                                .with(user("analyst")))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST)))
                                 .andExpect(status().isNotFound());
         }
 
@@ -242,7 +306,12 @@ class SecurityEventControllerTests {
 
                 mockMvc.perform(
                                 get("/api/events")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .param("severity", "HIGH"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$[*].severity")
@@ -259,7 +328,12 @@ class SecurityEventControllerTests {
 
                 mockMvc.perform(
                                 get("/api/events")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .param("eventType", "PORT_SCAN"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$[*].eventType")
@@ -276,7 +350,12 @@ class SecurityEventControllerTests {
 
                 mockMvc.perform(
                                 get("/api/events")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .param("severity", "CRITICAL")
                                                 .param("eventType", "FAILED_LOGIN"))
                                 .andExpect(status().isOk())
@@ -290,7 +369,12 @@ class SecurityEventControllerTests {
         void shouldReturnPaginatedEvents() throws Exception {
                 mockMvc.perform(
                                 get("/api/events/page")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .param("page", "0")
                                                 .param("size", "5"))
                                 .andExpect(status().isOk())
@@ -303,7 +387,12 @@ class SecurityEventControllerTests {
         void shouldRejectNegativePage() throws Exception {
                 mockMvc.perform(
                                 get("/api/events/page")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .param("page", "-1")
                                                 .param("size", "20"))
                                 .andExpect(status().isBadRequest())
@@ -315,7 +404,12 @@ class SecurityEventControllerTests {
         void shouldRejectOversizedPage() throws Exception {
                 mockMvc.perform(
                                 get("/api/events/page")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .param("page", "0")
                                                 .param("size", "101"))
                                 .andExpect(status().isBadRequest())
@@ -336,7 +430,12 @@ class SecurityEventControllerTests {
 
                 mockMvc.perform(
                                 post("/api/events")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(jsonMapper.writeValueAsString(request)))
@@ -360,7 +459,12 @@ class SecurityEventControllerTests {
 
                 mockMvc.perform(
                                 post("/api/events")
-                                                .with(user("analyst"))
+                                                .with(
+                                                                testUser(
+                                                                                analystRepository,
+                                                                                passwordEncoder,
+                                                                                "analyst",
+                                                                                AnalystRole.ANALYST))
                                                 .with(csrf())
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(jsonMapper.writeValueAsString(request)))
