@@ -18,12 +18,15 @@ function AdminPage() {
   const [password, setPassword] = useState("");
 
   const [resetPassword, setResetPassword] = useState("");
-
   const [resetAnalystId, setResetAnalystId] = useState<number | null>(null);
 
   const [error, setError] = useState<string | null>(null);
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const enabledAdminCount = analysts.filter(
+    (analyst) => analyst.role === "ADMIN" && analyst.enabled,
+  ).length;
 
   useEffect(() => {
     loadAnalysts();
@@ -55,7 +58,10 @@ function AdminPage() {
         password,
       });
 
-      setAnalysts((currentAnalysts) => [...currentAnalysts, createdAnalyst]);
+      setAnalysts((currentAnalysts) => [
+        ...currentAnalysts,
+        createdAnalyst,
+      ]);
 
       setUsername("");
       setPassword("");
@@ -71,7 +77,9 @@ function AdminPage() {
     }
   }
 
-  async function handleEnabledChange(analyst: AnalystResponse) {
+  async function handleEnabledChange(
+    analyst: AnalystResponse,
+  ) {
     try {
       setError(null);
       setActionLoading(`enabled-${analyst.id}`);
@@ -89,8 +97,13 @@ function AdminPage() {
         ),
       );
     } catch (error) {
-      if (error instanceof ApiError && error.status === 400) {
-        setError("The last enabled admin cannot be disabled.");
+      if (
+        error instanceof ApiError
+        && error.status === 400
+      ) {
+        setError(
+          "The last enabled admin cannot be disabled.",
+        );
         return;
       }
 
@@ -122,14 +135,22 @@ function AdminPage() {
     }
   }
 
-  async function handleRoleChange(analyst: AnalystResponse) {
-    const newRole = analyst.role === "ADMIN" ? "ANALYST" : "ADMIN";
+  async function handleRoleChange(
+    analyst: AnalystResponse,
+  ) {
+    const newRole =
+      analyst.role === "ADMIN"
+        ? "ANALYST"
+        : "ADMIN";
 
     try {
       setError(null);
       setActionLoading(`role-${analyst.id}`);
 
-      const updatedAnalyst = await setAnalystRole(analyst.id, newRole);
+      const updatedAnalyst = await setAnalystRole(
+        analyst.id,
+        newRole,
+      );
 
       setAnalysts((currentAnalysts) =>
         currentAnalysts.map((currentAnalyst) =>
@@ -139,8 +160,13 @@ function AdminPage() {
         ),
       );
     } catch (error) {
-      if (error instanceof ApiError && error.status === 400) {
-        setError("The last enabled admin cannot be demoted.");
+      if (
+        error instanceof ApiError
+        && error.status === 400
+      ) {
+        setError(
+          "The last enabled admin cannot be demoted.",
+        );
         return;
       }
 
@@ -150,7 +176,9 @@ function AdminPage() {
     }
   }
 
-  async function handleDeleteAnalyst(analyst: AnalystResponse) {
+  async function handleDeleteAnalyst(
+    analyst: AnalystResponse,
+  ) {
     const confirmed = window.confirm(
       `Delete ${analyst.username}? This cannot be undone.`,
     );
@@ -167,12 +195,18 @@ function AdminPage() {
 
       setAnalysts((currentAnalysts) =>
         currentAnalysts.filter(
-          (currentAnalyst) => currentAnalyst.id !== analyst.id,
+          (currentAnalyst) =>
+            currentAnalyst.id !== analyst.id,
         ),
       );
     } catch (error) {
-      if (error instanceof ApiError && error.status === 400) {
-        setError("The last enabled admin cannot be deleted.");
+      if (
+        error instanceof ApiError
+        && error.status === 400
+      ) {
+        setError(
+          "The last enabled admin cannot be deleted.",
+        );
         return;
       }
 
@@ -196,118 +230,201 @@ function AdminPage() {
           type="text"
           value={username}
           placeholder="Username"
-          onChange={(event) => setUsername(event.target.value)}
+          onChange={(event) =>
+            setUsername(event.target.value)
+          }
         />
 
         <input
           type="password"
           value={password}
           placeholder="Password"
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(event) =>
+            setPassword(event.target.value)
+          }
         />
 
         <button
           type="button"
           onClick={handleCreateAnalyst}
-          disabled={!username.trim() || !password || actionLoading === "create"}
+          disabled={
+            !username.trim()
+            || !password
+            || actionLoading === "create"
+          }
         >
-          {actionLoading === "create" ? "Creating..." : "Add analyst"}
+          {actionLoading === "create"
+            ? "Creating..."
+            : "Add analyst"}
         </button>
       </section>
 
       <section>
         <h3>Analysts</h3>
 
-        {analysts.map((analyst) => (
-          <article key={analyst.id} className="analyst-card">
-            <div className="analyst-summary">
-              <strong>{analyst.username}</strong>
+        {analysts.map((analyst) => {
+          const isLastEnabledAdmin =
+            analyst.role === "ADMIN"
+            && analyst.enabled
+            && enabledAdminCount <= 1;
 
-              <div className="analyst-meta">
+          const isResetting =
+            resetAnalystId === analyst.id;
+
+          return (
+            <div
+              key={analyst.id}
+              className="analyst-card"
+            >
+              <div className="analyst-details">
+                <strong>
+                  {analyst.username}
+                </strong>
+
                 <span>{analyst.role}</span>
 
-                <span>{analyst.enabled ? "Active" : "Disabled"}</span>
+                <span>
+                  {analyst.enabled
+                    ? "Enabled"
+                    : "Disabled"}
+                </span>
               </div>
-            </div>
 
-            <div className="analyst-actions">
-              <button
-                type="button"
-                onClick={() => setResetAnalystId(analyst.id)}
-              >
-                Reset password
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRoleChange(analyst)}
-                disabled={actionLoading === `role-${analyst.id}`}
-              >
-                {actionLoading === `role-${analyst.id}`
-                  ? "Updating role..."
-                  : analyst.role === "ADMIN"
-                    ? "Demote to analyst"
-                    : "Promote to admin"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleEnabledChange(analyst)}
-                disabled={actionLoading === `enabled-${analyst.id}`}
-              >
-                {actionLoading === `enabled-${analyst.id}`
-                  ? analyst.enabled
-                    ? "Disabling..."
-                    : "Enabling..."
-                  : analyst.enabled
-                    ? "Disable account"
-                    : "Enable account"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleDeleteAnalyst(analyst)}
-                disabled={actionLoading === `delete-${analyst.id}`}
-              >
-                {actionLoading === `delete-${analyst.id}`
-                  ? "Deleting..."
-                  : "Delete account"}
-              </button>
-            </div>
-
-            {resetAnalystId === analyst.id && (
-              <div className="analyst-password-reset">
-                <input
-                  type="password"
-                  value={resetPassword}
-                  placeholder="New password"
-                  onChange={(event) => setResetPassword(event.target.value)}
-                />
-
-                <button
-                  type="button"
-                  onClick={handleResetPassword}
-                  disabled={
-                    !resetPassword || actionLoading === `reset-${analyst.id}`
-                  }
-                >
-                  {actionLoading === `reset-${analyst.id}`
-                    ? "Saving..."
-                    : "Save password"}
-                </button>
-
+              <div className="analyst-actions">
                 <button
                   type="button"
                   onClick={() => {
-                    setResetAnalystId(null);
+                    setResetAnalystId(analyst.id);
                     setResetPassword("");
                   }}
                 >
-                  Cancel
+                  Reset password
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleRoleChange(analyst)
+                  }
+                  disabled={
+                    actionLoading ===
+                      `role-${analyst.id}`
+                    || isLastEnabledAdmin
+                  }
+                  title={
+                    isLastEnabledAdmin
+                      ? "Cannot demote the last enabled admin."
+                      : undefined
+                  }
+                >
+                  {actionLoading ===
+                  `role-${analyst.id}`
+                    ? "Updating role..."
+                    : analyst.role === "ADMIN"
+                      ? "Demote to analyst"
+                      : "Promote to admin"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleEnabledChange(analyst)
+                  }
+                  disabled={
+                    actionLoading ===
+                      `enabled-${analyst.id}`
+                    || isLastEnabledAdmin
+                  }
+                  title={
+                    isLastEnabledAdmin
+                      ? "Cannot disable the last enabled admin."
+                      : undefined
+                  }
+                >
+                  {actionLoading ===
+                  `enabled-${analyst.id}`
+                    ? analyst.enabled
+                      ? "Disabling..."
+                      : "Enabling..."
+                    : analyst.enabled
+                      ? "Disable account"
+                      : "Enable account"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDeleteAnalyst(analyst)
+                  }
+                  disabled={
+                    actionLoading ===
+                      `delete-${analyst.id}`
+                    || isLastEnabledAdmin
+                  }
+                  title={
+                    isLastEnabledAdmin
+                      ? "Cannot delete the last enabled admin."
+                      : undefined
+                  }
+                >
+                  {actionLoading ===
+                  `delete-${analyst.id}`
+                    ? "Deleting..."
+                    : "Delete account"}
                 </button>
               </div>
-            )}
-          </article>
-        ))}
+
+              {isResetting && (
+                <div className="reset-password-form">
+                  <input
+                    type="password"
+                    value={resetPassword}
+                    placeholder="New password"
+                    onChange={(event) =>
+                      setResetPassword(
+                        event.target.value,
+                      )
+                    }
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleResetPassword}
+                    disabled={
+                      !resetPassword
+                      || actionLoading ===
+                        `reset-${analyst.id}`
+                    }
+                  >
+                    {actionLoading ===
+                    `reset-${analyst.id}`
+                      ? "Resetting..."
+                      : "Confirm reset"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetAnalystId(null);
+                      setResetPassword("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {isLastEnabledAdmin && (
+                <p className="analyst-protection-message">
+                  This is the last enabled admin.
+                  Add or enable another admin before
+                  disabling, demoting, or deleting
+                  this account.
+                </p>
+              )}
+            </div>
+          );
+        })}
       </section>
     </section>
   );
