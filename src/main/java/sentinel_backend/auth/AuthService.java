@@ -147,9 +147,8 @@ public class AuthService {
 
                 if (analyst.getRole() == AnalystRole.ADMIN
                                 && analyst.isEnabled()
-                                && analystRepository
-                                                .countByRoleAndEnabledTrue(
-                                                                AnalystRole.ADMIN) <= 1) {
+                                && analystRepository.countByRoleAndEnabledTrue(
+                                        AnalystRole.ADMIN) <= 1) {
                         throw new InvalidOperationException(
                                         "Cannot delete the last enabled admin");
                 }

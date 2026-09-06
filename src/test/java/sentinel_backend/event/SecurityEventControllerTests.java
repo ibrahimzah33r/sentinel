@@ -295,8 +295,8 @@ class SecurityEventControllerTests {
                                                 .param("size", "5"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.content").isArray())
-                                .andExpect(jsonPath("$.size").value(5))
-                                .andExpect(jsonPath("$.number").value(0));
+                                .andExpect(jsonPath("$.page.size").value(5))
+                                .andExpect(jsonPath("$.page.number").value(0));
         }
 
         @Test

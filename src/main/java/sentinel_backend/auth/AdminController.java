@@ -5,11 +5,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.security.core.Authentication;
 import java.util.List;
 
 @RestController
@@ -56,8 +61,23 @@ public class AdminController {
 
         @DeleteMapping("/{id}")
         public ResponseEntity<Void> deleteAnalyst(
-                        @PathVariable Long id) {
+                        @PathVariable Long id,
+                        Authentication authentication,
+                        HttpServletRequest request) {
+                LoginResponse currentUser = authService.getCurrentUser(
+                                authentication.getName());
+
+                boolean deletingSelf = currentUser.id().equals(id);
+
                 authService.deleteAnalyst(id);
+
+                if (deletingSelf) {
+                        HttpSession session = request.getSession(false);
+
+                        if (session != null) {
+                                session.invalidate();
+                        }
+                }
 
                 return ResponseEntity.noContent().build();
         }

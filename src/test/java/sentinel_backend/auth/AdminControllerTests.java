@@ -15,6 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -243,6 +244,14 @@ class AdminControllerTests {
 
         @Test
         void adminCanDeleteAnalyst() throws Exception {
+                Analyst admin = new Analyst(
+                                "admin",
+                                passwordEncoder.encode("Password123!"));
+                admin.setRole(AnalystRole.ADMIN);
+                admin.setEnabled(true);
+
+                analystRepository.save(admin);
+
                 Analyst analyst = new Analyst(
                                 "analyst2",
                                 passwordEncoder.encode("Password123!"));
@@ -260,9 +269,9 @@ class AdminControllerTests {
                                 .andExpect(status().isNoContent());
 
                 assertThat(
-                                analystRepository.findById(
+                                analystRepository.existsById(
                                                 savedAnalyst.getId()))
-                                .isEmpty();
+                                .isFalse();
         }
 
         @Test
@@ -275,7 +284,7 @@ class AdminControllerTests {
                 adminOne.setRole(AnalystRole.ADMIN);
                 adminOne.setEnabled(true);
 
-                analystRepository.save(adminOne);
+                Analyst savedAdminOne = analystRepository.save(adminOne);
 
                 Analyst adminTwo = new Analyst(
                                 "admin2",
@@ -289,14 +298,21 @@ class AdminControllerTests {
                                 delete(
                                                 "/api/admin/analysts/"
                                                                 + savedAdminTwo.getId())
-                                                .with(user("admin").roles("ADMIN"))
+                                                .with(
+                                                                user(savedAdminOne.getUsername())
+                                                                                .roles("ADMIN"))
                                                 .with(csrf()))
                                 .andExpect(status().isNoContent());
 
                 assertThat(
-                                analystRepository.findById(
+                                analystRepository.existsById(
                                                 savedAdminTwo.getId()))
-                                .isEmpty();
+                                .isFalse();
+
+                assertThat(
+                                analystRepository.existsById(
+                                                savedAdminOne.getId()))
+                                .isTrue();
         }
 
         @Test
@@ -315,14 +331,16 @@ class AdminControllerTests {
                                 delete(
                                                 "/api/admin/analysts/"
                                                                 + savedAdmin.getId())
-                                                .with(user("admin").roles("ADMIN"))
+                                                .with(
+                                                                user(savedAdmin.getUsername())
+                                                                                .roles("ADMIN"))
                                                 .with(csrf()))
                                 .andExpect(status().isBadRequest());
 
                 assertThat(
-                                analystRepository.findById(
+                                analystRepository.existsById(
                                                 savedAdmin.getId()))
-                                .isPresent();
+                                .isTrue();
         }
 
         @Test
@@ -450,5 +468,69 @@ class AdminControllerTests {
 
                 assertThat(unchangedAdmin.getRole())
                                 .isEqualTo(AnalystRole.ADMIN);
+        }
+
+        @Test
+        void analystCannotChangeRole() throws Exception {
+
+                Analyst analyst = new Analyst(
+                                "analyst2",
+                                passwordEncoder.encode("Password123!"));
+                analyst.setRole(AnalystRole.ANALYST);
+                analyst.setEnabled(true);
+
+                Analyst savedAnalyst = analystRepository.save(analyst);
+
+                mockMvc.perform(
+                                patch(
+                                                "/api/admin/analysts/"
+                                                                + savedAnalyst.getId()
+                                                                + "/role")
+                                                .param("role", "ADMIN")
+                                                .with(user("analyst").roles("ANALYST"))
+                                                .with(csrf()))
+                                .andExpect(status().isForbidden());
+        }
+
+        @Test
+        void adminDeletingOwnAccountInvalidatesSession()
+                        throws Exception {
+
+                Analyst adminOne = new Analyst(
+                                "admin1",
+                                passwordEncoder.encode("Password123!"));
+                adminOne.setRole(AnalystRole.ADMIN);
+                adminOne.setEnabled(true);
+
+                Analyst savedAdminOne = analystRepository.save(adminOne);
+
+                Analyst adminTwo = new Analyst(
+                                "admin2",
+                                passwordEncoder.encode("Password123!"));
+                adminTwo.setRole(AnalystRole.ADMIN);
+                adminTwo.setEnabled(true);
+
+                analystRepository.save(adminTwo);
+
+                MockHttpSession session = new MockHttpSession();
+
+                mockMvc.perform(
+                                delete(
+                                                "/api/admin/analysts/"
+                                                                + savedAdminOne.getId())
+                                                .with(
+                                                                user(savedAdminOne.getUsername())
+                                                                                .roles("ADMIN"))
+                                                .with(csrf())
+                                                .session(session))
+                                .andExpect(status().isNoContent());
+
+                assertThat(
+                                analystRepository.existsById(
+                                                savedAdminOne.getId()))
+                                .isFalse();
+
+                assertThat(session.isInvalid())
+                                .isTrue();
         }
 }
