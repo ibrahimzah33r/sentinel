@@ -276,7 +276,7 @@ function AdminPage() {
               key={analyst.id}
               className="analyst-card"
             >
-              <div className="analyst-details">
+              <div className="analyst-meta">
                 <strong>
                   {analyst.username}
                 </strong>
