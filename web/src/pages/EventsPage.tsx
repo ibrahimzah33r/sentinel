@@ -88,7 +88,9 @@ function EventsPage() {
       setFeedback(
         status === "ESCALATED"
           ? `Event #${updatedEvent.id} escalated.`
-          : `Event #${updatedEvent.id} marked as reviewed.`,
+          : status === "REVIEWED"
+            ? `Event #${updatedEvent.id} marked as reviewed.`
+            : `Event #${updatedEvent.id} returned to normal.`,
       );
 
       setError(null);
@@ -268,19 +270,37 @@ function EventsPage() {
                 </dl>
 
                 <div className="event-actions">
-                  <button
-                    type="button"
-                    onClick={() => handleStatusChange("REVIEWED")}
-                  >
-                    Mark reviewed
-                  </button>
+                  {selectedEvent.status === "REVIEWED" ? (
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange("NEW")}
+                    >
+                      Unmark reviewed
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange("REVIEWED")}
+                    >
+                      Mark reviewed
+                    </button>
+                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => handleStatusChange("ESCALATED")}
-                  >
-                    Escalate
-                  </button>
+                  {selectedEvent.status === "ESCALATED" ? (
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange("NEW")}
+                    >
+                      De-escalate
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange("ESCALATED")}
+                    >
+                      Escalate
+                    </button>
+                  )}
 
                   {selectedEvent.status === "ESCALATED" && (
                     <button type="button" onClick={handleCreateCase}>
