@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getEvents, updateEventStatus } from "../api/events";
+import { deleteEvent, getEvents, updateEventStatus } from "../api/events";
 import type { Event, EventStatus } from "../types/Event";
 import { createCaseFromEvent } from "../api/cases";
 import { ApiError } from "../api/client";
@@ -109,12 +109,35 @@ function EventsPage() {
     }
   }
 
-  if (loading) {
-    return <p>Loading events...</p>;
+  async function handleDeleteEvent() {
+    if (!selectedEvent) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete event #${selectedEvent.id}?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const deletedId = selectedEvent.id;
+
+      await deleteEvent(deletedId);
+
+      setEvents((currentEvents) =>
+        currentEvents.filter((event) => event.id !== deletedId),
+      );
+
+      setSelectedEvent(null);
+      setError(null);
+    } catch {
+      setError("Unable to delete event.");
+    }
   }
 
-  if (error) {
-    return <p>{error}</p>;
+  if (loading) {
+    return <p>Loading events...</p>;
   }
 
   return (
@@ -123,6 +146,8 @@ function EventsPage() {
         <h2>Events</h2>
         <p>Review and investigate security events.</p>
       </div>
+
+      {error && <p>{error}</p>}
 
       <div className="event-filters">
         <input
@@ -237,11 +262,16 @@ function EventsPage() {
                   >
                     Escalate
                   </button>
+
                   {selectedEvent.status === "ESCALATED" && (
                     <button type="button" onClick={handleCreateCase}>
                       Create case
                     </button>
                   )}
+
+                  <button type="button" onClick={handleDeleteEvent}>
+                    Delete event
+                  </button>
                 </div>
               </>
             ) : (

@@ -27,12 +27,12 @@ services:
       test:
         [
           "CMD-SHELL",
-          'wget -qO- http://localhost:8080/actuator/health | grep -q ''"status":"UP"''',
+          "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"'",
         ]
       interval: 10s
-      timeout: 5s
-      retries: 7
-      start_period: 30s
+      timeout: 10s
+      retries: 12
+      start_period: 180s
   frontend:
     image: ghcr.io/ibrahimzah33r/sentinel-web:latest
     restart: unless-stopped

@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+
 import sentinel_backend.error.InvalidOperationException;
 import sentinel_backend.error.ResourceConflictException;
 import sentinel_backend.error.ResourceNotFoundException;
@@ -58,24 +59,6 @@ public class InvestigationCaseService {
                 .toList();
     }
 
-    private InvestigationCaseResponse toResponse(
-            InvestigationCase investigationCase) {
-        SecurityEvent event = investigationCase.getSecurityEvent();
-
-        return new InvestigationCaseResponse(
-                investigationCase.getId(),
-                investigationCase.getStatus(),
-                investigationCase.getCreatedAt(),
-                event.getId(),
-                event.getEventType(),
-                event.getSeverity(),
-                event.getStatus(),
-                event.getSource(),
-                event.getMessage(),
-                event.getIpAddress(),
-                event.getTimestamp());
-    }
-
     public InvestigationCaseResponse updateStatus(
             Long id,
             CaseStatus status) {
@@ -94,4 +77,29 @@ public class InvestigationCaseService {
         return toResponse(savedCase);
     }
 
+    public void deleteCase(Long id) {
+        InvestigationCase investigationCase = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Case not found"));
+
+        repository.delete(investigationCase);
+    }
+
+    private InvestigationCaseResponse toResponse(
+            InvestigationCase investigationCase) {
+        SecurityEvent event = investigationCase.getSecurityEvent();
+
+        return new InvestigationCaseResponse(
+                investigationCase.getId(),
+                investigationCase.getStatus(),
+                investigationCase.getCreatedAt(),
+                event.getId(),
+                event.getEventType(),
+                event.getSeverity(),
+                event.getStatus(),
+                event.getSource(),
+                event.getMessage(),
+                event.getIpAddress(),
+                event.getTimestamp());
+    }
 }

@@ -1,15 +1,17 @@
-import { apiGet, apiPatch } from './client'
-import type { Event, EventStatus } from '../types/Event'
+import { apiDelete, apiGet, apiPatch } from "./client";
+import type { Event, EventStatus } from "../types/Event";
 
 export function getEvents(): Promise<Event[]> {
-  return apiGet<Event[]>('/api/events')
+  return apiGet<Event[]>("/api/events");
 }
 
 export function updateEventStatus(
   id: number,
   status: EventStatus,
 ): Promise<Event> {
-  return apiPatch<Event>(
-    `/api/events/${id}/status?status=${status}`,
-  )
+  return apiPatch<Event>(`/api/events/${id}/status?status=${status}`);
+}
+
+export function deleteEvent(id: number): Promise<void> {
+  return apiDelete<void>(`/api/events/${id}`);
 }

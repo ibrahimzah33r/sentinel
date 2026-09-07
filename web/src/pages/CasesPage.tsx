@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getCases, updateCaseStatus } from "../api/cases";
+import { deleteCase, getCases, updateCaseStatus } from "../api/cases";
 import type { InvestigationCase } from "../types/Case";
 
 function CasesPage() {
@@ -52,12 +52,37 @@ function CasesPage() {
     }
   }
 
-  if (loading) {
-    return <p>Loading cases...</p>;
+  async function handleDeleteCase() {
+    if (!selectedCase) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete case #${selectedCase.id}?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const deletedId = selectedCase.id;
+
+      await deleteCase(deletedId);
+
+      setCases((currentCases) =>
+        currentCases.filter(
+          (investigationCase) => investigationCase.id !== deletedId,
+        ),
+      );
+
+      setSelectedCase(null);
+      setError(null);
+    } catch {
+      setError("Unable to delete case.");
+    }
   }
 
-  if (error) {
-    return <p>{error}</p>;
+  if (loading) {
+    return <p>Loading cases...</p>;
   }
 
   return (
@@ -65,6 +90,8 @@ function CasesPage() {
       <h2>Cases</h2>
 
       <p>Security investigations requiring analyst attention.</p>
+
+      {error && <p>{error}</p>}
 
       {cases.length === 0 ? (
         <p>No cases found.</p>
@@ -135,6 +162,10 @@ function CasesPage() {
                       Reopen case
                     </button>
                   )}
+
+                  <button type="button" onClick={handleDeleteCase}>
+                    Delete case
+                  </button>
                 </div>
               </>
             ) : (
