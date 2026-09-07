@@ -13,6 +13,8 @@ function CasesPage() {
 
   const [error, setError] = useState<string | null>(null);
 
+  const [feedback, setFeedback] = useState<string | null>(null);
+
   useEffect(() => {
     async function loadCases() {
       try {
@@ -46,8 +48,15 @@ function CasesPage() {
         ),
       );
 
+      setFeedback(
+        status === "CLOSED"
+          ? `Case #${updatedCase.id} closed.`
+          : `Case #${updatedCase.id} reopened.`,
+      );
+
       setError(null);
     } catch {
+      setFeedback(null);
       setError("Unable to update case status.");
     }
   }
@@ -57,26 +66,27 @@ function CasesPage() {
       return;
     }
 
-    const confirmed = window.confirm(`Delete case #${selectedCase.id}?`);
+    const deletedId = selectedCase.id;
+
+    const confirmed = window.confirm(`Delete case #${deletedId}?`);
 
     if (!confirmed) {
       return;
     }
 
     try {
-      const deletedId = selectedCase.id;
-
       await deleteCase(deletedId);
 
-      setCases((currentCases) =>
-        currentCases.filter(
-          (investigationCase) => investigationCase.id !== deletedId,
-        ),
-      );
+      const refreshedCases = await getCases();
 
+      setCases(refreshedCases);
       setSelectedCase(null);
+
+      setFeedback(`Case #${deletedId} deleted.`);
+
       setError(null);
     } catch {
+      setFeedback(null);
       setError("Unable to delete case.");
     }
   }
@@ -91,7 +101,9 @@ function CasesPage() {
 
       <p>Security investigations requiring analyst attention.</p>
 
-      {error && <p>{error}</p>}
+      {feedback && <p className="action-feedback">{feedback}</p>}
+
+      {error && <p className="action-error">{error}</p>}
 
       {cases.length === 0 ? (
         <p>No cases found.</p>

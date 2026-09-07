@@ -9,11 +9,11 @@ function EventsPage() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState("ALL");
   const [eventType, setEventType] = useState("ALL");
   const [source, setSource] = useState("ALL");
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadEvents() {
@@ -85,8 +85,15 @@ function EventsPage() {
         ),
       );
 
+      setFeedback(
+        status === "ESCALATED"
+          ? `Event #${updatedEvent.id} escalated.`
+          : `Event #${updatedEvent.id} marked as reviewed.`,
+      );
+
       setError(null);
     } catch {
+      setFeedback(null);
       setError("Unable to update event status.");
     }
   }
@@ -97,9 +104,16 @@ function EventsPage() {
     }
 
     try {
-      await createCaseFromEvent(selectedEvent.id);
+      const createdCase = await createCaseFromEvent(selectedEvent.id);
+
+      setFeedback(
+        `Case #${createdCase.id} created from event #${selectedEvent.id}.`,
+      );
+
       setError(null);
     } catch (exception) {
+      setFeedback(null);
+
       if (exception instanceof ApiError && exception.status === 409) {
         setError("A case already exists for this event.");
         return;
@@ -114,21 +128,27 @@ function EventsPage() {
       return;
     }
 
-    const confirmed = window.confirm(`Delete event #${selectedEvent.id}?`);
+    const deletedId = selectedEvent.id;
+
+    const confirmed = window.confirm(`Delete event #${deletedId}?`);
 
     if (!confirmed) {
       return;
     }
 
     try {
-      await deleteEvent(selectedEvent.id);
+      await deleteEvent(deletedId);
 
       const refreshedEvents = await getEvents();
 
       setEvents(refreshedEvents);
       setSelectedEvent(null);
+
+      setFeedback(`Event #${deletedId} deleted.`);
+
       setError(null);
     } catch {
+      setFeedback(null);
       setError("Unable to delete event.");
     }
   }
@@ -144,7 +164,9 @@ function EventsPage() {
         <p>Review and investigate security events.</p>
       </div>
 
-      {error && <p>{error}</p>}
+      {feedback && <p className="action-feedback">{feedback}</p>}
+
+      {error && <p className="action-error">{error}</p>}
 
       <div className="event-filters">
         <input

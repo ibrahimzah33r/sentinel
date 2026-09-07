@@ -431,3 +431,21 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+.action-feedback {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  background: #111827;
+  color: #d1fae5;
+}
+
+.action-error {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid #7f1d1d;
+  border-radius: 6px;
+  background: #1f1115;
+  color: #fecaca;
+}
