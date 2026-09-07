@@ -121,14 +121,11 @@ function EventsPage() {
     }
 
     try {
-      const deletedId = selectedEvent.id;
+      await deleteEvent(selectedEvent.id);
 
-      await deleteEvent(deletedId);
+      const refreshedEvents = await getEvents();
 
-      setEvents((currentEvents) =>
-        currentEvents.filter((event) => event.id !== deletedId),
-      );
-
+      setEvents(refreshedEvents);
       setSelectedEvent(null);
       setError(null);
     } catch {
