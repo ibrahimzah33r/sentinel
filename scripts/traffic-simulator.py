@@ -3,45 +3,47 @@ import json
 import random
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+from http.cookiejar import CookieJar
 
 
 EVENT_TEMPLATES = [
     {
         "eventType": "FAILED_LOGIN",
+        "severities": ["MEDIUM", "HIGH"],
         "messages": [
             "Repeated failed login attempts",
-            "Invalid credentials submitted repeatedly",
-            "Multiple authentication failures detected",
+            "Multiple invalid credentials submitted",
+            "Authentication failure threshold exceeded",
         ],
-        "severities": ["MEDIUM", "HIGH"],
     },
     {
         "eventType": "PORT_SCAN",
+        "severities": ["MEDIUM", "HIGH"],
         "messages": [
             "Sequential connection attempts across multiple ports",
             "Possible TCP port scan detected",
-            "Unusual port enumeration activity",
+            "Port enumeration activity detected",
         ],
-        "severities": ["MEDIUM", "HIGH"],
     },
     {
         "eventType": "MALWARE_DETECTED",
+        "severities": ["HIGH", "CRITICAL"],
         "messages": [
-            "Suspicious executable detected",
-            "Malware signature matched on endpoint",
+            "Suspicious executable detected on endpoint",
+            "Known malware signature detected",
             "Potential malicious payload identified",
         ],
-        "severities": ["HIGH", "CRITICAL"],
     },
     {
         "eventType": "SUSPICIOUS_REQUEST",
-        "messages": [
-            "Unusual request pattern detected",
-            "Potential probing request received",
-            "Abnormal HTTP request activity",
-        ],
         "severities": ["LOW", "MEDIUM", "HIGH"],
+        "messages": [
+            "Unusual HTTP request pattern detected",
+            "Potential probing request received",
+            "Abnormal request activity detected",
+        ],
     },
 ]
 
@@ -56,12 +58,96 @@ SOURCES = [
 ]
 
 
+def create_opener():
+    cookie_jar = CookieJar()
+
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(cookie_jar)
+    )
+
+    return opener
+
+
+def read_json(response):
+    body = response.read().decode("utf-8")
+
+    if not body:
+        return {}
+
+    return json.loads(body)
+
+
+def get_csrf(opener, base_url):
+    request = urllib.request.Request(
+        f"{base_url}/api/auth/csrf",
+        method="GET",
+    )
+
+    with opener.open(request, timeout=10) as response:
+        data = read_json(response)
+
+    token = (
+        data.get("token")
+        or data.get("csrfToken")
+        or data.get("_csrf")
+    )
+
+    header_name = (
+        data.get("headerName")
+        or data.get("header")
+        or "X-CSRF-TOKEN"
+    )
+
+    if not token:
+        raise RuntimeError(
+            "CSRF endpoint did not return a recognizable token."
+        )
+
+    return token, header_name
+
+
+def login(
+    opener,
+    base_url,
+    username,
+    password,
+):
+    csrf_token, csrf_header = get_csrf(
+        opener,
+        base_url,
+    )
+
+    body = json.dumps(
+        {
+            "username": username,
+            "password": password,
+        }
+    ).encode("utf-8")
+
+    request = urllib.request.Request(
+        f"{base_url}/api/auth/login",
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            csrf_header: csrf_token,
+        },
+        method="POST",
+    )
+
+    with opener.open(request, timeout=10) as response:
+        user = read_json(response)
+
+    return user
+
+
 def random_ip():
-    return (
-        f"{random.randint(10, 223)}."
-        f"{random.randint(0, 255)}."
-        f"{random.randint(0, 255)}."
-        f"{random.randint(1, 254)}"
+    return ".".join(
+        [
+            str(random.randint(10, 223)),
+            str(random.randint(0, 255)),
+            str(random.randint(0, 255)),
+            str(random.randint(1, 254)),
+        ]
     )
 
 
@@ -71,93 +157,183 @@ def create_event():
     return {
         "source": random.choice(SOURCES),
         "eventType": template["eventType"],
-        "severity": random.choice(template["severities"]),
-        "message": random.choice(template["messages"]),
+        "severity": random.choice(
+            template["severities"]
+        ),
+        "message": random.choice(
+            template["messages"]
+        ),
         "ipAddress": random_ip(),
     }
 
 
-def send_event(api_url, event):
+def send_event(
+    opener,
+    base_url,
+    event,
+):
+    csrf_token, csrf_header = get_csrf(
+        opener,
+        base_url,
+    )
+
     body = json.dumps(event).encode("utf-8")
 
     request = urllib.request.Request(
-        api_url,
+        f"{base_url}/api/events",
         data=body,
         headers={
             "Content-Type": "application/json",
+            csrf_header: csrf_token,
         },
         method="POST",
     )
 
     try:
-        with urllib.request.urlopen(
+        with opener.open(
             request,
             timeout=10,
         ) as response:
+            response.read()
             return response.status
 
     except urllib.error.HTTPError as error:
-        print(
-            f"HTTP {error.code}: "
-            f"{error.read().decode('utf-8')}"
+        body = error.read().decode(
+            "utf-8",
+            errors="replace",
         )
-        return error.code
 
-    except urllib.error.URLError as error:
-        print(f"Connection error: {error.reason}")
-        return None
+        if error.code == 429:
+            print(
+                "Rate limited by Sentinel "
+                "(HTTP 429)."
+            )
+        elif error.code == 401:
+            print(
+                "Authentication rejected "
+                "(HTTP 401)."
+            )
+        elif error.code == 403:
+            print(
+                "Request rejected by CSRF/"
+                "authorization (HTTP 403)."
+            )
+        else:
+            print(
+                f"HTTP {error.code}: {body}"
+            )
+
+        return error.code
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate simulated Sentinel security traffic."
+        description=(
+            "Generate authenticated simulated "
+            "security traffic for Sentinel."
+        )
     )
 
     parser.add_argument(
         "--url",
-        default="http://localhost/api/events",
-        help="Sentinel event-ingestion endpoint",
+        default="http://localhost",
+        help=(
+            "Sentinel base URL "
+            "(default: http://localhost)"
+        ),
+    )
+
+    parser.add_argument(
+        "--username",
+        required=True,
+        help="Sentinel analyst username",
+    )
+
+    parser.add_argument(
+        "--password",
+        required=True,
+        help="Sentinel analyst password",
     )
 
     parser.add_argument(
         "--interval",
         type=float,
         default=2.0,
-        help="Seconds between generated events",
+        help=(
+            "Seconds between events "
+            "(default: 2)"
+        ),
     )
 
     parser.add_argument(
         "--count",
         type=int,
         default=0,
-        help="Number of events to send. 0 runs continuously.",
+        help=(
+            "Events to generate. "
+            "0 means run continuously."
+        ),
     )
 
     args = parser.parse_args()
 
-    sent = 0
+    base_url = args.url.rstrip("/")
+
+    opener = create_opener()
+
+    try:
+        user = login(
+            opener,
+            base_url,
+            args.username,
+            args.password,
+        )
+    except Exception as error:
+        print(
+            f"Unable to log in to Sentinel: {error}"
+        )
+        return
 
     print("Sentinel traffic simulator")
-    print(f"Target:   {args.url}")
-    print(f"Interval: {args.interval}s")
+    print()
+    print(
+        f"Authenticated as: "
+        f"{user.get('username', args.username)}"
+    )
+    print(f"Target:           {base_url}")
+    print(f"Interval:         {args.interval}s")
+
+    if args.count == 0:
+        print("Events:           continuous")
+    else:
+        print(f"Events:           {args.count}")
+
+    print()
     print("Press Ctrl+C to stop.")
     print()
 
+    sent = 0
+
     try:
-        while args.count == 0 or sent < args.count:
+        while (
+            args.count == 0
+            or sent < args.count
+        ):
             event = create_event()
 
             status = send_event(
-                args.url,
+                opener,
+                base_url,
                 event,
             )
 
             sent += 1
 
             print(
-                f"[{sent}] "
+                f"[{sent:04}] "
                 f"{event['severity']:<8} "
                 f"{event['eventType']:<20} "
+                f"{event['source']:<15} "
                 f"{event['ipAddress']:<15} "
                 f"HTTP {status}"
             )
@@ -166,7 +342,10 @@ def main():
 
     except KeyboardInterrupt:
         print()
-        print(f"Stopped after {sent} events.")
+        print(
+            f"Simulator stopped after "
+            f"{sent} generated events."
+        )
 
 
 if __name__ == "__main__":
