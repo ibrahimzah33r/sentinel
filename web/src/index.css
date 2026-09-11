@@ -234,6 +234,10 @@ button {
   background: #111827;
   border: 1px solid #1f2937;
   border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .analyst-card {
