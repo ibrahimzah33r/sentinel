@@ -206,8 +206,9 @@ button {
 }
 .event-actions {
   display: flex;
-  gap: 8px;
   margin-top: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .event-actions button {
