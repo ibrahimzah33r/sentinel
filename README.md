@@ -1,34 +1,135 @@
 # Sentinel
 
-Sentinel is a full-stack security event and investigation case management application built as a portfolio project.
+Sentinel is a full-stack security event monitoring and investigation platform built with React, Spring Boot and PostgreSQL.
 
-It demonstrates a production-style architecture with a React analyst console, Spring Boot API, PostgreSQL persistence, session-based authentication, role-based authorization, automated testing, Docker, database migrations and CI/CD.
+It provides an analyst console for reviewing security events, escalating incidents into investigation cases, managing analyst accounts and roles, and monitoring a production-style containerised application.
 
-## Features
+![Sentinel analyst dashboard](docs/screenshots/dashboard.png)
 
-- Security event creation, viewing, filtering and pagination
+## Highlights
+
+- Security event ingestion, filtering and investigation
+- Event review and escalation workflow
 - Investigation case management
-- Analyst authentication with server-side sessions
-- CSRF protection
-- `ADMIN` and `ANALYST` roles
-- Admin analyst-account management
-- Password resets
-- Account enable/disable controls
-- Safe analyst deletion
-- Safe role promotion and demotion
-- Protection against removing the last enabled administrator
-- Immediate session revalidation after account disable, deletion or role change
-- PostgreSQL persistence
-- Flyway database migrations
-- Spring Boot Actuator health monitoring
+- Session-based authentication with CSRF protection
+- `ADMIN` and `ANALYST` role-based authorization
+- Analyst account creation, password reset, enable/disable and deletion
+- Protection against disabling, deleting or demoting the final enabled administrator
+- Immediate session revalidation when an account is disabled, deleted or changes role
+- PostgreSQL persistence with Flyway migrations
+- Integration testing with Testcontainers
 - Request rate limiting
-- Structured API errors
-- React analyst console
-- Dockerized production-style deployment
+- Spring Boot Actuator health monitoring
+- Dockerised frontend, backend, database and Nginx reverse proxy
 - GitHub Actions CI/CD
-- Docker images published to GitHub Container Registry
+- Backend and frontend images published to GitHub Container Registry
+- Authenticated traffic simulator for generating realistic security events
 
-## Technology
+## Screenshots
+
+### Security Events
+
+Analysts can search and filter incoming events, inspect their details, mark them as reviewed, escalate them, and create investigation cases.
+
+![Sentinel security events](docs/screenshots/events.png)
+
+### Event Investigation
+
+Escalated events can be promoted into investigation cases while retaining the underlying event information.
+
+![Sentinel event investigation](docs/screenshots/event-details.png)
+
+### Investigation Cases
+
+Cases provide a separate workflow for tracking security incidents through investigation and closure.
+
+![Sentinel investigation cases](docs/screenshots/cases.png)
+
+### Analyst Administration
+
+Administrators can manage users, roles, passwords and account state while backend safeguards preserve at least one enabled administrator.
+
+![Sentinel analyst administration](docs/screenshots/admin.png)
+
+## Architecture
+
+```text
+User
+  ↓
+Browser
+  ↓
+Nginx
+  ├──→ React frontend
+  │
+  └──→ Spring Boot API
+            ↓
+        PostgreSQL
+```
+
+The application uses a layered backend architecture:
+
+```text
+HTTP Request
+    ↓
+Spring Security
+    ↓
+Controller
+    ↓
+Service
+    ↓
+Repository
+    ↓
+PostgreSQL
+```
+
+More detail is available in:
+
+```text
+docs/architecture.md
+```
+
+## Security
+
+Sentinel uses server-side Spring Security sessions.
+
+After login, the browser receives a `JSESSIONID` cookie while authentication state remains on the backend.
+
+State-changing requests use CSRF protection.
+
+Sentinel supports:
+
+```text
+ADMIN
+ANALYST
+```
+
+Routes under:
+
+```text
+/api/admin/**
+```
+
+require the `ADMIN` role.
+
+Authenticated sessions are revalidated against the current analyst record in PostgreSQL. This means:
+
+```text
+disabled account
+→ session invalidated
+→ 401 Unauthorized
+
+deleted account
+→ session invalidated
+→ 401 Unauthorized
+
+role changed
+→ authorities refreshed
+→ current database role is enforced
+```
+
+Administrative safeguards prevent the final enabled administrator from being disabled, deleted or demoted.
+
+## Technology Stack
 
 ### Backend
 
@@ -76,8 +177,12 @@ sentinel/
 │   ├── docker-compose.prod.yml
 │   └── nginx-proxy.conf
 │
+├── scripts/
+│   └── traffic-simulator.py
+│
 ├── docs/
-│   └── architecture.md
+│   ├── architecture.md
+│   └── screenshots/
 │
 └── .github/
     └── workflows/
@@ -85,61 +190,9 @@ sentinel/
         └── web-ci.yml
 ```
 
-## Architecture
-
-The application is split into a React frontend and Spring Boot backend.
-
-```text
-User
-  ↓
-Browser
-  ↓
-Nginx
-  ├──→ React frontend
-  │
-  └──→ Spring Boot API
-            ↓
-        PostgreSQL
-```
-
-For more detail, see:
-
-```text
-docs/architecture.md
-```
-
-## Authentication and Authorization
-
-Sentinel uses server-side Spring Security sessions.
-
-After a successful login, the browser stores a `JSESSIONID` cookie. Authentication remains on the backend rather than being stored as a client-side access token.
-
-Protected API routes require authentication.
-
-Administrative routes under:
-
-```text
-/api/admin/**
-```
-
-require the `ADMIN` role.
-
-Sentinel supports:
-
-```text
-ADMIN
-ANALYST
-```
-
-Authenticated sessions are revalidated against the database. If an analyst is disabled or deleted, their session loses access. If their role changes, their authorization is refreshed for subsequent requests.
-
-Administrative safeguards prevent disabling, deleting or demoting the last enabled administrator.
-
 ## Local Development
 
 ### Backend
-
-From the repository root:
 
 ```bash
 cd backend
@@ -147,7 +200,7 @@ docker compose up -d postgres
 mvn spring-boot:run
 ```
 
-The backend runs on:
+Backend:
 
 ```text
 http://localhost:8080
@@ -163,22 +216,47 @@ npm ci
 npm run dev
 ```
 
-The Vite development server runs on:
+Frontend:
 
 ```text
 http://localhost:5173
 ```
 
-## Tests
+## Traffic Simulator
 
-Backend tests require Docker because integration tests use Testcontainers.
+Sentinel includes an authenticated traffic simulator that generates realistic security events through the normal API.
+
+Example:
+
+```bash
+python3 scripts/traffic-simulator.py \
+  --username analyst \
+  --password 'YOUR_PASSWORD' \
+  --count 20
+```
+
+The simulator:
+
+```text
+retrieves CSRF token
+→ logs in
+→ maintains Spring session cookie
+→ generates events
+→ POSTs them through /api/events
+```
+
+It can also be used to demonstrate rate limiting by increasing the request frequency.
+
+## Testing
+
+Backend integration tests require Docker because Testcontainers provisions PostgreSQL automatically.
 
 ```bash
 cd backend
 mvn test
 ```
 
-Build the frontend with:
+Frontend production build:
 
 ```bash
 cd web
@@ -187,7 +265,7 @@ npm run build
 
 ## Database Migrations
 
-Flyway owns schema migrations.
+Flyway owns database schema changes.
 
 Migration files are stored under:
 
@@ -195,28 +273,26 @@ Migration files are stored under:
 backend/src/main/resources/db/migration/
 ```
 
-Hibernate validates the database schema rather than automatically modifying the production schema.
+Hibernate validates the schema rather than automatically modifying the production database.
 
 ## Production Deployment
 
-Production uses prebuilt Docker images published to GitHub Container Registry:
+Production uses Docker images published to GitHub Container Registry:
 
 ```text
 ghcr.io/ibrahimzah33r/sentinel-backend:latest
 ghcr.io/ibrahimzah33r/sentinel-web:latest
 ```
 
-Environment-specific secrets are supplied through:
+Environment-specific configuration is supplied through:
 
 ```text
 deployment/.env
 ```
 
-The `.env` file is intentionally excluded from Git.
+The `.env` file is excluded from Git.
 
-### Pull current images
-
-From the repository root:
+### Pull latest images
 
 ```bash
 docker compose \
@@ -256,7 +332,7 @@ docker compose \
   logs -f
 ```
 
-### Stop the stack
+### Stop
 
 ```bash
 docker compose \
@@ -270,15 +346,16 @@ Do not use `down -v` unless the PostgreSQL data volume is intentionally being re
 
 ## CI/CD
 
-The monorepo contains separate workflows for the backend and frontend.
+The monorepo contains separate GitHub Actions workflows for the backend and frontend.
 
 Backend changes:
 
 ```text
 backend/**
 → Maven tests
-→ backend Docker build
-→ sentinel-backend image published to GHCR
+→ Docker build
+→ sentinel-backend image
+→ GHCR
 ```
 
 Frontend changes:
@@ -286,8 +363,9 @@ Frontend changes:
 ```text
 web/**
 → npm build
-→ frontend Docker build
-→ sentinel-web image published to GHCR
+→ Docker build
+→ sentinel-web image
+→ GHCR
 ```
 
-The source code is maintained in one Git repository while the backend and frontend remain separate deployable Docker images.
+This keeps the source code in one repository while preserving separate deployable backend and frontend images.
