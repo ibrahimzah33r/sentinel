@@ -204,11 +204,16 @@ button {
     grid-template-columns: 1fr;
   }
 }
-.event-actions {
+
+.event-actions,
+.case-actions {
   display: flex;
-  margin-top: 20px;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.event-actions {
+  margin-top: 20px;
 }
 
 .event-actions button {
