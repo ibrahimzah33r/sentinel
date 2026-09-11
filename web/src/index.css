@@ -316,8 +316,9 @@ button:disabled {
 
 .cases-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
   gap: 24px;
+  align-items: start;
   margin-top: 24px;
 }
 
@@ -466,4 +467,20 @@ button:disabled {
   border-radius: 6px;
   background: #1f1115;
   color: #fecaca;
+}
+
+@media (max-width: 900px) {
+  .cases-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cases-list,
+  .case-details {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .case-details {
+    position: static;
+  }
 }
