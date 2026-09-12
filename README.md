@@ -33,11 +33,6 @@ Analysts can search and filter incoming events, inspect their details, mark them
 
 ![Sentinel security events](docs/screenshots/events.png)
 
-### Event Investigation
-
-Escalated events can be promoted into investigation cases while retaining the underlying event information.
-
-![Sentinel event investigation](docs/screenshots/event-details.png)
 
 ### Investigation Cases
 
